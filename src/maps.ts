@@ -1,5 +1,6 @@
 import {
   Client,
+  GeocodeResult,
   PlaceData,
   TravelMode,
 } from "@googlemaps/google-maps-services-js";
@@ -19,18 +20,24 @@ export const mapsClient = new Client({});
 
 export interface Place {
   name: string;
-  latLng: LatLngLiteral;
+  geo: GeocodeResult;
+}
+
+export interface RightMoveStation extends Place {
+  rightMoveId: string;
 }
 
 export interface Journey {
   origin: Place;
   distanceSeconds: number;
 }
-export interface PlaceWithJourneys extends Place {
+export interface StationWithJourneys extends RightMoveStation {
   journeys: Journey[];
 }
 
-export const getStationLatLng = async (stationName: string) => {
+export const getStationGeo = async (
+  stationName: string,
+): Promise<GeocodeResult | null> => {
   try {
     const response = await mapsClient.geocode({
       params: {
@@ -39,11 +46,7 @@ export const getStationLatLng = async (stationName: string) => {
       },
     });
 
-    if (response.data.results.length > 0) {
-      return response.data.results[0].geometry.location;
-    } else {
-      return null;
-    }
+    return response.data.results[0] ?? null;
   } catch (error) {
     return null;
   }
@@ -72,11 +75,11 @@ export const getStationLatLng = async (stationName: string) => {
 // };
 
 export const filterStationsByDurationToLocation = async (
-  stations: (Place | PlaceWithJourneys)[],
+  stations: (RightMoveStation | StationWithJourneys)[],
   origin: Place,
   durationSeconds: number,
-): Promise<PlaceWithJourneys[]> => {
-  let stationsWithinDistance: PlaceWithJourneys[] = [];
+): Promise<StationWithJourneys[]> => {
+  let stationsWithinDistance: StationWithJourneys[] = [];
   for (let i = 0; i < stations.length; i++) {
     if (i % 10 === 0) {
       console.log(`Processing ${i}/${stations.length}`);
@@ -85,8 +88,8 @@ export const filterStationsByDurationToLocation = async (
     const directionsResponse = (
       await mapsClient.directions({
         params: {
-          origin: origin.latLng,
-          destination: station.latLng,
+          origin: origin.geo.geometry.location,
+          destination: station.geo.geometry.location,
           mode: TravelMode.transit,
           key: API_KEY,
         },

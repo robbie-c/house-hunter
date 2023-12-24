@@ -1,4 +1,4 @@
-import allStations from "../data/all_stations.json";
+import allStations from "../intermediates/all_stations.json";
 import { haversineDistanceMeters, sortBySortNumericKey } from "./utils";
 import { filterStationsByDurationToLocation, Place } from "./maps";
 import * as fs from "fs";

@@ -3,3 +3,5 @@
 node_modules
 output.json
 yarn-error.log
+/intermediates
+!/intermediates/.gitkeep

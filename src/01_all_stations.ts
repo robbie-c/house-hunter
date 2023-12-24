@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import { parse } from "csv-parse";
 import { z } from "zod";
-import { getStationLatLng, Place } from "./maps";
+import { getStationGeo, Place } from "./maps";
 import { isNotNil } from "./utils";
 
 const stationRecord = z.object({
@@ -37,8 +37,11 @@ const main = async () => {
   const nationalRailStationLines = nationalRailStationsRaw.split("\n");
   const nationalRailStations = nationalRailStationLines
     .map((line) => {
-      const [name] = line.split("\t");
-      return name.trim();
+      const [rawName] = line.split("\t");
+      return rawName
+        .trim()
+        .replace("(Cheshire)", "(Ches.)")
+        .replace("(Lancashire)", "(Lancs.)");
     })
     .filter((s) => !!s);
 
@@ -51,14 +54,24 @@ const main = async () => {
       allStations.map(async (station): Promise<Place | null> => {
         for (const suffix of [" station", " railway station", " interchange"]) {
           const suffixedName = station + suffix;
-          const latLng = await getStationLatLng(suffixedName);
-          if (!latLng) {
+          const geo = await getStationGeo(suffixedName + ", uk");
+          if (!geo) {
             continue;
+          }
+          if (
+            geo.address_components.some(
+              (c) =>
+                c.short_name.includes("Northern Ireland") ||
+                c.long_name.includes("Northern Ireland"),
+            )
+          ) {
+            // no Rightmove in NI
+            return null;
           }
           console.log(`Enriched ${station}`);
           return {
             name: suffixedName,
-            latLng,
+            geo,
           };
         }
         return null;
@@ -69,7 +82,7 @@ const main = async () => {
   console.log(enriched.length);
 
   fs.writeFileSync(
-    "./data/all_stations.json",
+    "./intermediates/01_all_stations.json",
     JSON.stringify(enriched, null, 2),
   );
 };
