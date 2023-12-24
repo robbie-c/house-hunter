@@ -13,6 +13,7 @@ const main = async () => {
   const results: {
     geo: GeocodeResult;
     rightmove: RightMoveSearchLocation;
+    name: string;
   }[] = [];
   for (const station of allStations) {
     const searchLocation = await getLocationIdentifier(station.name);
@@ -20,6 +21,7 @@ const main = async () => {
       continue;
     }
     results.push({
+      name: station.name,
       geo: station.geo,
       rightmove: searchLocation,
     });

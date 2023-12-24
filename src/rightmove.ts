@@ -34,13 +34,32 @@ const LocationIdentifierResponse = z.object({
   typeAheadLocations: z.array(RightMoveSearchLocation),
 });
 
+const canonicaliseLocation = (location: string) => {
+  return location
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[.()']/g, "")
+    .replace(/-/g, " ")
+    .split(" ")
+    .map((w) => w.trim())
+    .filter((w) => !!w)
+    .join(" ");
+};
+
 export const getLocationIdentifier = async (
   location: string,
 ): Promise<RightMoveSearchLocation | null> => {
-  location = location
-    .replace(/&/g, "and")
-    .replace(/[.()]/g, "")
-    .replace(/-/g, " ");
+  location = canonicaliseLocation(location);
+
+  const retryWithoutLondon = (location: string) => {
+    // for london stations, just try again without the word london
+    const words = location
+      .split(" ")
+      .map((w) => w.trim())
+      .filter((w) => !!w && w.toLowerCase() !== "london");
+
+    return getLocationIdentifier(words.join(" "));
+  };
 
   let path = "https://www.rightmove.co.uk/typeAhead/uknostreet";
   for (let i = 0; i < (location.length + 1) / 2; i++) {
@@ -57,6 +76,10 @@ export const getLocationIdentifier = async (
   try {
     json = await response.json();
   } catch (e) {
+    if (location.toLowerCase().includes("london")) {
+      return retryWithoutLondon(location);
+    }
+
     console.log(`No results for ${location}`);
     return null;
   }
@@ -65,8 +88,36 @@ export const getLocationIdentifier = async (
   const stations = parsedResponse.typeAheadLocations.filter((l) =>
     l.locationIdentifier.startsWith("STATION^"),
   );
-  const firstResult = stations[0];
-  if (!firstResult) {
+  let station: (typeof stations)[0] | null = null;
+
+  if (stations.length === 0) {
+    if (location.toLowerCase().includes("london")) {
+      return retryWithoutLondon(location);
+    }
+  } else if (stations.length === 1) {
+    station = stations[0];
+  } else if (stations.length > 1) {
+    const nameMatch = stations.find((s) =>
+      canonicaliseLocation(s.displayName).includes(location),
+    );
+    if (nameMatch) {
+      station = nameMatch;
+    } else {
+      if (location.toLowerCase().includes("london")) {
+        return retryWithoutLondon(location);
+      }
+      console.log(
+        `Multiple stations for ${location}, got ${JSON.stringify(
+          stations,
+          null,
+          2,
+        )}`,
+      );
+      return null;
+    }
+  }
+
+  if (!station) {
     console.log(
       `No station for ${location}, got ${JSON.stringify(
         parsedResponse.typeAheadLocations,
@@ -76,7 +127,7 @@ export const getLocationIdentifier = async (
     );
     return null;
   }
-  return firstResult;
+  return station;
 };
 
 const Property = z.object({
