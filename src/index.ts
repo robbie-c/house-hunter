@@ -2,17 +2,25 @@ import allStations from "../intermediates/all_stations.json";
 import { haversineDistanceMeters, sortBySortNumericKey } from "./utils";
 import { filterStationsByDurationToLocation, Place } from "./maps";
 import * as fs from "fs";
+import {GeocodeResult} from "@googlemaps/google-maps-services-js";
 
 const MAXIMUM_TRAVEL_TIME_SECONDS = 60 * 75; // 75 minutes
 const MAXIMUM_RADIUS_METERS = 20 * 1000; // 20km
 
+
+
+
 const travelLocations: Place[] = [
   {
     name: "Waterloo, London",
-    latLng: {
-      lat: 51.5049,
-      lng: -0.1137,
-    },
+    geo: {
+      geometry: {
+        location: {
+          lat: 51.5049,
+          lng: -0.1137,
+        },
+      }
+    } as GeocodeResult
   },
 ];
 

@@ -18,6 +18,7 @@ if (!API_KEY) {
 
 export const mapsClient = new Client({});
 
+
 export interface Place {
   name: string;
   geo: GeocodeResult;
